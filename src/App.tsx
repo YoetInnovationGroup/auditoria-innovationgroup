@@ -234,7 +234,7 @@ export default function App() {
     setValidationError('');
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setValidationError('');
     
     const currentSectionId = sections[currentSectionIndex].id;
@@ -244,104 +244,49 @@ export default function App() {
     }
 
     setIsSubmitting(true);
-    
-    // JSON Estructurado Profesional
-    const structuredJSON = {
-      auditoria: {
-        fecha: new Date().toISOString(),
-        version: "2.0"
-      },
-      operacion: {
-        volumenMensual: formData.q1,
-        tiposTramites: formData.q2,
-        rangoHonorarios: formData.q3,
-        clientesRecurrentes: formData.q4
-      },
-      flujo: {
-        canalesIngreso: formData.q5,
-        descripcionIngreso: formData.q6,
-        organizacionInfo: formData.q7,
-        duplicacionInfo: {
-          frecuencia: formData.q8,
-          detalle: formData.q8_info
-        }
-      },
-      expedientes: {
-        documentosPorTramite: formData.q9,
-        verificacionExpediente: formData.q10,
-        manejoFaltantes: formData.q11
-      },
-      seguimiento: {
-        controlPendientes: formData.q12,
-        responsableSeguimiento: formData.q13,
-        frecuenciaContacto: formData.q14,
-        horasAdministrativas: formData.q15
-      },
-      trabajoNotarial: {
-        intervencionPersonal: formData.q16,
-        preparablesPrevioRevision: formData.q17,
-        dependenciaExperiencia: {
-          frecuencia: formData.q18,
-          cuales: formData.q18_cuales
-        }
-      },
-      comunicacion: {
-        preguntasFrecuentes: formData.q19,
-        mensajesRepetitivos: formData.q20,
-        extraccionManual: formData.q21
-      },
-      trustEscrow: hasTrustEscrow ? {
-        flujoGeneral: formData.q22,
-        documentacionCondiciones: formData.q23,
-        controlRequisitos: formData.q24,
-        parteMasTiempo: formData.q25,
-        situacionesAtrasos: formData.q26
-      } : null,
-      sistemas: {
-        herramientas: formData.q27,
-        duplicacionTrabajo: formData.q28,
-        dependenciaPersonal: formData.q29,
-        mejoraUnica: formData.q30
-      },
-      impacto: {
-        tareaAdminMasTiempo: formData.q31,
-        procesoFacilError: formData.q32,
-        atrasosPorInfoFaltante: formData.q33,
-        colapsoVolumenTriplicado: formData.q34
-      },
-      problemaAltoValor: {
-        dejarDeHacer: formData.q35,
-        masTiempoConsume: formData.q36,
-        masErroresGenera: formData.q37,
-        masOlvidado: formData.q38,
-        masDependePendiente: formData.q39,
-        problemaMayorSiTriplica: formData.q40,
-        eliminarCargaAdmin: formData.q41,
-        procesoAutomatizadoImpacto: formData.q42
-      },
-      visionMejora: {
-        areaAMejorar: formData.q43,
-        impactoPersonal: formData.q44
-      }
-    };
 
     try {
-      const storageKey = 'app-audit-data-v2';
-      const existingData = localStorage.getItem(storageKey);
-      let auditsArray = [];
-      if (existingData) auditsArray = JSON.parse(existingData);
-      
-      auditsArray.push({ id: `audit-${Date.now()}`, ...structuredJSON });
-      localStorage.setItem(storageKey, JSON.stringify(auditsArray));
-      
-      setTimeout(() => {
-        setIsSubmitting(false);
-        setIsSuccess(true);
-        localStorage.removeItem('app-audit-draft');
-      }, 1200);
+      const response = await fetch(
+        'https://bdlrqmgnapyfwqfpgpla.supabase.co/functions/v1/recibir-auditoria',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (!result || result.success !== true) {
+        throw new Error('Respuesta no válida del servidor.');
+      }
+
+      // Descargar automáticamente el JSON devuelto por la Edge Function
+      const today = new Date().toISOString().split('T')[0];
+      const fileName = `auditoria-notarial-${today}.json`;
+      const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      // Limpiar borrador local y mostrar pantalla de éxito
+      localStorage.removeItem('app-audit-draft');
+      setIsSubmitting(false);
+      setIsSuccess(true);
     } catch (error) {
-      console.error("Error al guardar auditoría:", error);
-      setValidationError("Ocurrió un error al enviar. Por favor intente nuevamente.");
+      console.error("Error al enviar auditoría:", error);
+      setValidationError("No fue posible enviar la auditoría. Verifique la conexión e intente nuevamente.");
       setIsSubmitting(false);
     }
   };
