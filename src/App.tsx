@@ -261,25 +261,6 @@ export default function App() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const result = await response.json();
-
-      if (!result || result.success !== true) {
-        throw new Error('Respuesta no válida del servidor.');
-      }
-
-      // Descargar automáticamente el JSON devuelto por la Edge Function
-      const today = new Date().toISOString().split('T')[0];
-      const fileName = `auditoria-notarial-${today}.json`;
-      const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
       // Limpiar borrador local y mostrar pantalla de éxito
       localStorage.removeItem('app-audit-draft');
       setIsSubmitting(false);
